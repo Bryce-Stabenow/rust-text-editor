@@ -1,5 +1,3 @@
-use text_editor::run;
-
 fn main(){
-    run()
+    println!("Hello world!");
 }
