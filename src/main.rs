@@ -38,6 +38,6 @@ impl Sandbox for Editor {
     fn view(&self) -> Element<'_, Self::Message> {
         let input = text_editor(&self.content).on_edit(Message::Edit);
 
-        container(input).padding(10).into()
+        container(input).padding(20).into()
     }
 }
