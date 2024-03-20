@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -11,12 +11,14 @@ fn main() -> iced::Result {
 
 struct Editor {
     content: text_editor::Content,
+    error: Option<Error>,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Edit(text_editor::Action),
-    FileOpened(Result<Arc<String>, io::ErrorKind>),
+    Open,
+    FileOpened(Result<Arc<String>, Error>),
 }
 
 impl Application for Editor {
@@ -29,6 +31,7 @@ impl Application for Editor {
         (
             Self {
                 content: text_editor::Content::with(include_str!("main.rs")),
+                error: None,
             },
             Command::perform(
                 load_file(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR"))),
@@ -45,19 +48,22 @@ impl Application for Editor {
         match message {
             Message::Edit(action) => {
                 self.content.edit(action);
+                Command::none()
             }
-            Message::FileOpened(result) => {
-                if let Ok(content) = result {
-                    self.content = text_editor::Content::with(&content)
-                }
+            Message::Open => Command::perform(pick_file(), Message::FileOpened),
+            Message::FileOpened(Ok(result)) => {
+                self.content = text_editor::Content::with(&result);
+                Command::none()
+            }
+            Message::FileOpened(Err(error)) => {
+                self.error = Some(error);
+                Command::none()
             }
         }
-
-        Command::none()
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
-        let controls = row![button("Load File")];
+        let controls = row![button("Load File").on_press(Message::Open)];
 
         let position = {
             let (line, column) = self.content.cursor_position();
@@ -79,9 +85,26 @@ impl Application for Editor {
     }
 }
 
-async fn load_file(path: impl AsRef<Path>) -> Result<Arc<String>, io::ErrorKind> {
+async fn load_file(path: impl AsRef<Path>) -> Result<Arc<String>, Error> {
     tokio::fs::read_to_string(path)
         .await
         .map(Arc::new)
         .map_err(|error| error.kind())
+        .map_err(Error::IO)
+}
+
+async fn pick_file() -> Result<Arc<String>, Error> {
+    let handle = rfd::AsyncFileDialog::new()
+        .set_title("Choose a text file...")
+        .pick_file()
+        .await
+        .ok_or(Error::DialogClosed)?;
+
+    load_file(handle.path()).await
+}
+
+#[derive(Debug, Clone)]
+enum Error {
+    DialogClosed,
+    IO(io::ErrorKind),
 }
