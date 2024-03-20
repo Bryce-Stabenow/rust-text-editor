@@ -1,5 +1,5 @@
-use iced::{Element, Settings, Sandbox};
-use iced::widget::{container, text_editor};
+use iced::{Element, Sandbox, Settings, Theme};
+use iced::widget::{button, column, container, row, text, text_editor};
 
 fn main() -> iced::Result{
     Editor::run(Settings::default())
@@ -19,7 +19,7 @@ impl Sandbox for Editor {
 
     fn new() -> Self {
         Self {
-            content: text_editor::Content::new(),
+            content: text_editor::Content::with(include_str!("main.rs")),
         }
     }
 
@@ -36,8 +36,20 @@ impl Sandbox for Editor {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
+        let controls = row![button("Load File")];
+
+        let position = {
+            let (line, column) = self.content.cursor_position();
+
+            text(format!("{}:{}", line, column))
+        };
+
         let input = text_editor(&self.content).on_edit(Message::Edit);
 
-        container(input).padding(20).into()
+        container(column![controls, input, position]).padding(20).into()
+    }
+
+    fn theme(&self) -> Theme {
+        Theme::Dark
     }
 }
