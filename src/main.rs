@@ -1,5 +1,5 @@
 use std::io::{self};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use iced::widget::{button, column, container, horizontal_space, row, text, text_editor};
@@ -10,6 +10,7 @@ fn main() -> iced::Result {
 }
 
 struct Editor {
+    path: Option<PathBuf>,
     content: text_editor::Content,
     error: Option<Error>,
 }
@@ -18,7 +19,7 @@ struct Editor {
 enum Message {
     Edit(text_editor::Action),
     Open,
-    FileOpened(Result<Arc<String>, Error>),
+    FileOpened(Result<(PathBuf, Arc<String>), Error>),
 }
 
 impl Application for Editor {
@@ -30,11 +31,12 @@ impl Application for Editor {
     fn new(_flags: Self::Flags) -> (Self, Command<Message>) {
         (
             Self {
+                path: None,
                 content: text_editor::Content::with(include_str!("main.rs")),
                 error: None,
             },
             Command::perform(
-                load_file(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR"))),
+                load_file(default_file()),
                 Message::FileOpened,
             ),
         )
@@ -51,7 +53,8 @@ impl Application for Editor {
                 Command::none()
             }
             Message::Open => Command::perform(pick_file(), Message::FileOpened),
-            Message::FileOpened(Ok(result)) => {
+            Message::FileOpened(Ok((path, result))) => {
+                self.path = Some(path);
                 self.content = text_editor::Content::with(&result);
                 Command::none()
             }
@@ -71,7 +74,12 @@ impl Application for Editor {
             text(format!("{}:{}", line, column))
         };
 
-        let status_bar = row![horizontal_space(Length::Fill), position];
+        let file_path = match self.path.as_deref().and_then(Path::to_str) {
+            Some(path) => text(path).size(14),
+            _ => text("")
+        };
+
+        let status_bar = row![file_path, horizontal_space(Length::Fill), position];
 
         let input = text_editor(&self.content).on_edit(Message::Edit);
 
@@ -85,22 +93,28 @@ impl Application for Editor {
     }
 }
 
-async fn load_file(path: impl AsRef<Path>) -> Result<Arc<String>, Error> {
-    tokio::fs::read_to_string(path)
+async fn load_file(path: PathBuf) -> Result<(PathBuf, Arc<String>), Error> {
+    let contents = tokio::fs::read_to_string(&path)
         .await
         .map(Arc::new)
         .map_err(|error| error.kind())
-        .map_err(Error::IO)
+        .map_err(Error::IO)?;
+
+    Ok((path, contents))
 }
 
-async fn pick_file() -> Result<Arc<String>, Error> {
+async fn pick_file() -> Result<(PathBuf, Arc<String>), Error> {
     let handle = rfd::AsyncFileDialog::new()
         .set_title("Choose a text file...")
         .pick_file()
         .await
         .ok_or(Error::DialogClosed)?;
 
-    load_file(handle.path()).await
+    load_file(handle.path().to_owned()).await
+}
+
+fn default_file() -> PathBuf {
+    PathBuf::from(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR")))
 }
 
 #[derive(Debug, Clone)]
