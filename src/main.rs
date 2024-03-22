@@ -1,3 +1,4 @@
+use std::error;
 use std::io::{self};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -18,6 +19,7 @@ struct Editor {
 #[derive(Debug, Clone)]
 enum Message {
     Edit(text_editor::Action),
+    New,
     Open,
     FileOpened(Result<(PathBuf, Arc<String>), Error>),
 }
@@ -47,6 +49,12 @@ impl Application for Editor {
         match message {
             Message::Edit(action) => {
                 self.content.edit(action);
+                self.error = None;
+                Command::none()
+            }
+            Message::New => {
+                self.path = None;
+                self.content = text_editor::Content::new();
                 Command::none()
             }
             Message::Open => Command::perform(pick_file(), Message::FileOpened),
@@ -63,20 +71,30 @@ impl Application for Editor {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
-        let controls = row![button("Load File").on_press(Message::Open)];
+        let controls = row![
+            button("Open").on_press(Message::Open),
+            horizontal_space(Length::Fill),
+            button("New").on_press(Message::New)
+        ];
 
-        let position = {
-            let (line, column) = self.content.cursor_position();
+        let status_bar = {
+            let position = {
+                let (line, column) = self.content.cursor_position();
 
-            text(format!("{}:{}", line, column))
+                text(format!("{}:{}", line, column))
+            };
+
+            let status = if let Some(Error::IO(error)) = self.error {
+                text(error.to_string())
+            } else {
+                match self.path.as_deref().and_then(Path::to_str) {
+                    Some(path) => text(path).size(14),
+                    None => text("New file"),
+                }
+            };
+
+            row![status, horizontal_space(Length::Fill), position]
         };
-
-        let file_path = match self.path.as_deref().and_then(Path::to_str) {
-            Some(path) => text(path).size(14),
-            _ => text(""),
-        };
-
-        let status_bar = row![file_path, horizontal_space(Length::Fill), position];
 
         let input = text_editor(&self.content).on_edit(Message::Edit);
 
