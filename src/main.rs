@@ -35,10 +35,7 @@ impl Application for Editor {
                 content: text_editor::Content::with(include_str!("main.rs")),
                 error: None,
             },
-            Command::perform(
-                load_file(default_file()),
-                Message::FileOpened,
-            ),
+            Command::perform(load_file(default_file()), Message::FileOpened),
         )
     }
 
@@ -76,7 +73,7 @@ impl Application for Editor {
 
         let file_path = match self.path.as_deref().and_then(Path::to_str) {
             Some(path) => text(path).size(14),
-            _ => text("")
+            _ => text(""),
         };
 
         let status_bar = row![file_path, horizontal_space(Length::Fill), position];
