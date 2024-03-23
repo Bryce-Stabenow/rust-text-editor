@@ -1,4 +1,3 @@
-use std::error;
 use std::io::{self};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -21,6 +20,8 @@ enum Message {
     Edit(text_editor::Action),
     New,
     Open,
+    Save,
+    FileSaved(Result<PathBuf, Error>),
     FileOpened(Result<(PathBuf, Arc<String>), Error>),
 }
 
@@ -57,6 +58,10 @@ impl Application for Editor {
                 self.content = text_editor::Content::new();
                 Command::none()
             }
+            Message::Save => {
+                let text = self.content.text();
+                Command::perform(save_file(self.path.clone(), text), Message::FileSaved)
+            }
             Message::Open => Command::perform(pick_file(), Message::FileOpened),
             Message::FileOpened(Ok((path, result))) => {
                 self.path = Some(path);
@@ -67,12 +72,22 @@ impl Application for Editor {
                 self.error = Some(error);
                 Command::none()
             }
+            Message::FileSaved(Ok(path)) => {
+                self.path = Some(path);
+                Command::none()
+            }
+            Message::FileSaved(Err(error)) => {
+                self.error = Some(error);
+                Command::none()
+            }
         }
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
         let controls = row![
             button("Open").on_press(Message::Open),
+            horizontal_space(Length::Fill),
+            button("Save").on_press(Message::Save),
             horizontal_space(Length::Fill),
             button("New").on_press(Message::New)
         ];
@@ -126,6 +141,25 @@ async fn pick_file() -> Result<(PathBuf, Arc<String>), Error> {
         .ok_or(Error::DialogClosed)?;
 
     load_file(handle.path().to_owned()).await
+}
+
+async fn save_file(path: Option<PathBuf>, text: String) -> Result<PathBuf, Error> {
+    let path = if let Some(path) = path {
+        path
+    } else {
+        rfd::AsyncFileDialog::new()
+            .set_title("Choose a file name...")
+            .save_file()
+            .await
+            .ok_or(Error::DialogClosed)
+            .map(|handle| handle.path().to_owned())?
+    };
+
+    tokio::fs::write(&path, text)
+        .await
+        .map_err(|err| Error::IO(err.kind()))?;
+
+    Ok(path)
 }
 
 fn default_file() -> PathBuf {
