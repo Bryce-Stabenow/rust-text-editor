@@ -2,11 +2,13 @@ use std::io::{self};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use iced::highlighter::{self, Highlighter};
 use iced::widget::{button, column, container, horizontal_space, row, text, text_editor, tooltip};
 use iced::{executor, theme, Application, Command, Element, Font, Length, Settings, Theme};
 
 fn main() -> iced::Result {
     Editor::run(Settings {
+        default_font: Font::MONOSPACE,
         fonts: vec![include_bytes!("../fonts/editor-icons.ttf")
             .as_slice()
             .into()],
@@ -130,7 +132,22 @@ impl Application for Editor {
             row![status, horizontal_space(Length::Fill), position]
         };
 
-        let input = text_editor(&self.content).on_edit(Message::Edit);
+        let input = text_editor(&self.content)
+            .on_edit(Message::Edit)
+            .highlight::<Highlighter>(
+                {
+                    highlighter::Settings {
+                        theme: highlighter::Theme::Base16Eighties, // Theme we chose for the highlighting
+                        extension: self
+                            .path
+                            .as_ref()
+                            .and_then(|path| path.extension()?.to_str())
+                            .unwrap_or("rs")
+                            .to_string(), // This is the file extension we want to use to tell the highlighter what language the file is in
+                    }
+                },
+                |highlight, _theme| highlight.to_format(),
+            );
 
         container(column![controls, input, status_bar])
             .padding(20)
