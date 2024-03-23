@@ -20,6 +20,7 @@ struct Editor {
     path: Option<PathBuf>,
     content: text_editor::Content,
     error: Option<Error>,
+    theme: highlighter::Theme,
 }
 
 #[derive(Debug, Clone)]
@@ -44,6 +45,7 @@ impl Application for Editor {
                 path: None,
                 content: text_editor::Content::new(),
                 error: None,
+                theme: highlighter::Theme::SolarizedDark,
             },
             Command::perform(load_file(default_file()), Message::FileOpened),
         )
@@ -111,7 +113,8 @@ impl Application for Editor {
             )
             .style(theme::Container::Box),
         ]
-        .spacing(10);
+        .spacing(10)
+        .padding([5, 0]);
 
         let status_bar = {
             let position = {
@@ -129,7 +132,7 @@ impl Application for Editor {
                 }
             };
 
-            row![status, horizontal_space(Length::Fill), position]
+            row![status, horizontal_space(Length::Fill), position].padding([5, 0])
         };
 
         let input = text_editor(&self.content)
@@ -137,7 +140,7 @@ impl Application for Editor {
             .highlight::<Highlighter>(
                 {
                     highlighter::Settings {
-                        theme: highlighter::Theme::Base16Eighties, // Theme we chose for the highlighting
+                        theme: self.theme, // Theme we chose for the highlighting
                         extension: self
                             .path
                             .as_ref()
