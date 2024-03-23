@@ -2,8 +2,8 @@ use std::io::{self};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use iced::widget::{button, column, container, horizontal_space, row, text, text_editor};
-use iced::{executor, Application, Command, Element, Font, Length, Settings, Theme};
+use iced::widget::{button, column, container, horizontal_space, row, text, text_editor, tooltip};
+use iced::{executor, theme, Application, Command, Element, Font, Length, Settings, Theme};
 
 fn main() -> iced::Result {
     Editor::run(Settings {
@@ -90,9 +90,24 @@ impl Application for Editor {
 
     fn view(&self) -> Element<'_, Self::Message> {
         let controls = row![
-            button(open_icon()).on_press(Message::Open),
-            button(save_icon()).on_press(Message::Save),
-            button(new_icon()).on_press(Message::New)
+            tooltip(
+                button(container(open_icon()).width(50).center_x()).on_press(Message::Open),
+                "Open File",
+                tooltip::Position::FollowCursor
+            )
+            .style(theme::Container::Box),
+            tooltip(
+                button(container(save_icon()).width(50).center_x()).on_press(Message::Save),
+                "Save File",
+                tooltip::Position::FollowCursor
+            )
+            .style(theme::Container::Box),
+            tooltip(
+                button(container(new_icon()).width(50).center_x()).on_press(Message::New),
+                "New File",
+                tooltip::Position::FollowCursor
+            )
+            .style(theme::Container::Box),
         ]
         .spacing(10);
 
