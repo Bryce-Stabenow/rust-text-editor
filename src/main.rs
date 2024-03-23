@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use iced::highlighter::{self, Highlighter};
-use iced::widget::{button, column, container, horizontal_space, row, text, text_editor, tooltip};
+use iced::widget::{
+    button, column, container, horizontal_space, pick_list, row, text, text_editor, tooltip,
+};
 use iced::{executor, theme, Application, Command, Element, Font, Length, Settings, Theme};
 
 fn main() -> iced::Result {
@@ -31,6 +33,7 @@ enum Message {
     Save,
     FileSaved(Result<PathBuf, Error>),
     FileOpened(Result<(PathBuf, Arc<String>), Error>),
+    ThemeSelected(highlighter::Theme),
 }
 
 impl Application for Editor {
@@ -89,6 +92,10 @@ impl Application for Editor {
                 self.error = Some(error);
                 Command::none()
             }
+            Message::ThemeSelected(theme) => {
+                self.theme = theme;
+                Command::none()
+            }
         }
     }
 
@@ -112,6 +119,12 @@ impl Application for Editor {
                 tooltip::Position::FollowCursor
             )
             .style(theme::Container::Box),
+            horizontal_space(Length::Fill),
+            pick_list(
+                highlighter::Theme::ALL,
+                Some(self.theme),
+                Message::ThemeSelected
+            )
         ]
         .spacing(10)
         .padding([5, 0]);
