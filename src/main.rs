@@ -3,10 +3,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use iced::widget::{button, column, container, horizontal_space, row, text, text_editor};
-use iced::{executor, Application, Command, Element, Length, Settings, Theme};
+use iced::{executor, Application, Command, Element, Font, Length, Settings, Theme};
 
 fn main() -> iced::Result {
-    Editor::run(Settings::default())
+    Editor::run(Settings {
+        fonts: vec![include_bytes!("../fonts/editor-icons.ttf")
+            .as_slice()
+            .into()],
+        ..Settings::default()
+    })
 }
 
 struct Editor {
@@ -35,7 +40,7 @@ impl Application for Editor {
         (
             Self {
                 path: None,
-                content: text_editor::Content::with(include_str!("main.rs")),
+                content: text_editor::Content::new(),
                 error: None,
             },
             Command::perform(load_file(default_file()), Message::FileOpened),
@@ -85,12 +90,11 @@ impl Application for Editor {
 
     fn view(&self) -> Element<'_, Self::Message> {
         let controls = row![
-            button("Open").on_press(Message::Open),
-            horizontal_space(Length::Fill),
-            button("Save").on_press(Message::Save),
-            horizontal_space(Length::Fill),
-            button("New").on_press(Message::New)
-        ];
+            button(open_icon()).on_press(Message::Open),
+            button(save_icon()).on_press(Message::Save),
+            button(new_icon()).on_press(Message::New)
+        ]
+        .spacing(10);
 
         let status_bar = {
             let position = {
@@ -121,6 +125,24 @@ impl Application for Editor {
     fn theme(&self) -> Theme {
         Theme::Dark
     }
+}
+
+fn new_icon<'a>() -> Element<'a, Message> {
+    icon('\u{E800}')
+}
+
+fn save_icon<'a>() -> Element<'a, Message> {
+    icon('\u{E801}')
+}
+
+fn open_icon<'a>() -> Element<'a, Message> {
+    icon('\u{F115}')
+}
+
+fn icon<'a, Message>(codepoint: char) -> Element<'a, Message> {
+    const ICON_FONT: Font = Font::with_name("editor-icons");
+
+    text(codepoint).font(ICON_FONT).into()
 }
 
 async fn load_file(path: PathBuf) -> Result<(PathBuf, Arc<String>), Error> {
