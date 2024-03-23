@@ -171,7 +171,10 @@ impl Application for Editor {
     }
 
     fn theme(&self) -> Theme {
-        Theme::Dark
+        match self.theme.is_dark() {
+            true => Theme::Dark,
+            false => Theme::Light,
+        }
     }
 }
 
