@@ -11,8 +11,6 @@ use iced::{
     Theme,
 };
 
-// Test comments
-
 fn main() -> iced::Result {
     Editor::run(Settings {
         default_font: Font::MONOSPACE,
