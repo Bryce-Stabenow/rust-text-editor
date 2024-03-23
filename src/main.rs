@@ -6,7 +6,12 @@ use iced::highlighter::{self, Highlighter};
 use iced::widget::{
     button, column, container, horizontal_space, pick_list, row, text, text_editor, tooltip,
 };
-use iced::{executor, theme, Application, Command, Element, Font, Length, Settings, Theme};
+use iced::{
+    executor, keyboard, theme, Application, Command, Element, Font, Length, Settings, Subscription,
+    Theme,
+};
+
+// Test comments
 
 fn main() -> iced::Result {
     Editor::run(Settings {
@@ -23,6 +28,7 @@ struct Editor {
     content: text_editor::Content,
     error: Option<Error>,
     theme: highlighter::Theme,
+    is_dirty: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -49,6 +55,7 @@ impl Application for Editor {
                 content: text_editor::Content::new(),
                 error: None,
                 theme: highlighter::Theme::SolarizedDark,
+                is_dirty: true,
             },
             Command::perform(load_file(default_file()), Message::FileOpened),
         )
@@ -61,11 +68,13 @@ impl Application for Editor {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Edit(action) => {
+                self.is_dirty = self.is_dirty || action.is_edit();
                 self.content.edit(action);
                 self.error = None;
                 Command::none()
             }
             Message::New => {
+                self.is_dirty = true;
                 self.path = None;
                 self.content = text_editor::Content::new();
                 Command::none()
@@ -76,6 +85,7 @@ impl Application for Editor {
             }
             Message::Open => Command::perform(pick_file(), Message::FileOpened),
             Message::FileOpened(Ok((path, result))) => {
+                self.is_dirty = false;
                 self.path = Some(path);
                 self.content = text_editor::Content::with(&result);
                 Command::none()
@@ -85,6 +95,7 @@ impl Application for Editor {
                 Command::none()
             }
             Message::FileSaved(Ok(path)) => {
+                self.is_dirty = false;
                 self.path = Some(path);
                 Command::none()
             }
@@ -99,6 +110,13 @@ impl Application for Editor {
         }
     }
 
+    fn subscription(&self) -> Subscription<Message> {
+        keyboard::on_key_press(|key_code, modifiers| match key_code {
+            keyboard::KeyCode::S if modifiers.command() => Some(Message::Save),
+            _ => None,
+        })
+    }
+
     fn view(&self) -> Element<'_, Self::Message> {
         let controls = row![
             tooltip(
@@ -108,7 +126,13 @@ impl Application for Editor {
             )
             .style(theme::Container::Box),
             tooltip(
-                button(container(save_icon()).width(50).center_x()).on_press(Message::Save),
+                button(container(save_icon()).width(50).center_x())
+                    .on_press_maybe(self.is_dirty.then_some(Message::Save))
+                    .style(if self.is_dirty {
+                        theme::Button::Primary
+                    } else {
+                        theme::Button::Secondary
+                    }),
                 "Save File",
                 tooltip::Position::FollowCursor
             )
