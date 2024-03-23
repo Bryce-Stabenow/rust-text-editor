@@ -63,12 +63,20 @@ impl Application for Editor {
         String::from("TxtGrind")
     }
 
+    fn subscription(&self) -> Subscription<Message> {
+        keyboard::on_key_press(|key_code, modifiers| match key_code {
+            keyboard::KeyCode::S if modifiers.command() => Some(Message::Save),
+            keyboard::KeyCode::O if modifiers.command() => Some(Message::Open),
+            _ => None,
+        })
+    }
+
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Edit(action) => {
                 self.is_dirty = self.is_dirty || action.is_edit();
-                self.content.edit(action);
                 self.error = None;
+                self.content.edit(action);
                 Command::none()
             }
             Message::New => {
@@ -106,13 +114,6 @@ impl Application for Editor {
                 Command::none()
             }
         }
-    }
-
-    fn subscription(&self) -> Subscription<Message> {
-        keyboard::on_key_press(|key_code, modifiers| match key_code {
-            keyboard::KeyCode::S if modifiers.command() => Some(Message::Save),
-            _ => None,
-        })
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
